@@ -1,56 +1,39 @@
 <template>
-    <q-table class="table-main" bordered title="PRODUCT" :rows="rows" :columns="columns" row-key="id" :loading="isLoading"
-        flat v-model:selected="selected" selection="multiple">
-        <template #body-cell-image="props">
-            <td class="flex items-center">
-                <q-img :loading="true" :src="props.value" alt="Product Image" class="product-image " />
-            </td>
-        </template>
-
-    </q-table>
-    <q-card class="p-5 flex justify-end space-x-5">
-        <q-btn color="primary" label="Save" :disable="isDisable" @click="showDialog = true" />
-        <q-btn @click="handleCancel" color="primary" label="Cancel" :disable="isDisable" />
-    </q-card>
-    <q-dialog v-model="showDialog">
-        <q-card class="p-2 min-w-[1/2]">
-            <div class="text-end">
-                <q-btn @click="showDialog = false" icon="close" flat></q-btn>
-            </div>
-            <h4 class="text-[#ff1a75] text-[42px] font-bold text-center pb-5">Thông tin Sản Phẩm</h4>
-            <q-separator inset></q-separator>
-            <q-card-section class="border-b border-[#ccc]" v-for="item in selected">
-                <div class="grid grid-cols-2">
-                    <q-img class="image-dialog w-full m-x-auto m-y-0" :src="item.image" />
-                    <div class="infoProduct flex flex-col gap-5">
-                        <p><span>Title: </span>{{ item.title }}</p>
-                        <p><span>Category: </span>{{ item.category }}</p>
-                        <p><span>Price: </span>{{ item.price }}$</p>
-                        <p><span>Count: </span> {{ item.rating.count }}</p>
-                        <p class="flex items-center gap-2"><span>Rate:</span><q-rating disable color="yellow" size="sm" v-model="item.rating.rate"></q-rating></p>
-                    </div>
-                </div>
-            </q-card-section>
-            <q-card-actions class="justify-end">
-                <q-btn color="primary" label="accept"></q-btn>
-                <q-btn color="primary" label="cancel"></q-btn>
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+    <div>
+        <q-btn color="primary" label="Settings" icon="settings" @click="showSettingsDialog = true" />
+        <q-table v-table-resizable separator="vertical" class="table-main" bordered title="AirLine" :rows="rows" :columns="visibleColumns" row-key="id"
+            :loading="isLoading" flat v-model:selected="selected" selection="multiple" v-model:pagination="pagination" :rows-per-page-options="[2,5,10,0]">
+        </q-table>
+        <q-dialog v-model="showSettingsDialog">
+            <q-card class="q-pa-md min-w-[70%]">
+                <q-card-section>
+                    <h4 class="mb-2">Table settings</h4>
+                    <h6 class="ml-4 mb-4">View columns</h6>
+                    <q-option-group class="groupOption grid grid-cols-4 gap-2" v-model="tempSelectedColumns" :options="columnOptions" type="checkbox"
+                        label="Select Columns" />
+                </q-card-section>
+                <q-card-actions align="right" class="q-mt-md">
+                    <q-btn color="primary" label="Apply" @click="acceptSettings" />
+                    <q-btn class="text-[#000]" label="Reset" @click="acceptSettings" />
+                </q-card-actions>
+            </q-card>
+        </q-dialog>
+    </div>
 </template>
   
-<script setup>
+<script setup lang="ts">
+import { ref, reactive, watchEffect } from 'vue';
 const isLoading = ref(true);
-const selected = ref()
-const showDialog = ref(false)
-let { data: product } = useAsyncData('product', () => $fetch('https://fakestoreapi.com/products'));
-
-const isDisable = computed(() => {
-    return selected.value?.length ? false : true
+const selected = ref();
+const pagination = ref({
+    page: 1,
+    rowsPerPage: 5
 })
-const handleCancel = () => {
-    selected.value = [];
-}
+let { data: airline, refresh} = await useAsyncData(
+    'airline',
+    () => $fetch(`https://api.instantwebtools.net/v1/passenger?page=0&size=10`)
+);
+
 const columns = reactive([
     {
         name: 'id',
@@ -58,59 +41,81 @@ const columns = reactive([
         label: 'ID',
         align: 'left',
         field: 'id',
-        sortable: true
+        sortable: true,
+        sort: (a: number, b: number) => {
+            return a - b
+        }
     },
     {
-        name: 'title',
+        name: 'name',
         required: true,
-        label: 'Title',
+        label: 'Name',
         align: 'left',
-        field: 'title',
+        field: 'name',
         sortable: true
     },
     {
-        name: 'price',
+        name: 'country',
         required: true,
-        label: 'Price',
+        label: 'Country',
         align: 'left',
-        field: 'price',
+        field: 'country',
         sortable: true
     },
     {
-        name: 'category',
+        name: 'slogan',
         required: true,
-        label: 'Category',
+        label: 'Slogan',
         align: 'left',
-        field: 'category',
+        field: 'slogan',
         sortable: true
     },
     {
-        name: 'description',
+        name: 'head_quaters',
         required: true,
-        label: 'Description',
+        label: 'Headquarters',
         align: 'left',
-        field: 'description',
+        field: 'head_quaters',
         sortable: true
     },
     {
-        name: 'image',
-        label: 'Image',
+        name: 'logo',
+        label: 'Logo',
         align: 'center',
-        field: 'image',
+        field: 'logo',
+        format: (value) => `${value}`
     }
 ]);
 
 const rows = reactive([]);
+const showSettingsDialog = ref(false);
+const tempSelectedColumns = ref(columns.map(column => column.field));
+
+const columnOptions = columns.map((column) => ({
+    label: column.label,
+    value: column.field,
+}));
+let visibleColumns = reactive([...columns])
+const acceptSettings = () => {
+    visibleColumns = columns.filter((column) => tempSelectedColumns.value.includes(column.field));
+    showSettingsDialog.value = false;
+};
 
 watchEffect(() => {
-    if (product.value) {
-        rows.splice(0, rows.length, ...product.value);
+    if (airline.value) {
+        rows.splice(0, rows.length, ...airline.value.data.map((item) => item.airline[0]));
         isLoading.value = false;
     }
 });
 </script>
   
 <style lang="scss">
+.groupOption  {
+    .q-checkbox__inner--truthy .q-checkbox__bg {
+        background: #000;
+        border: 2px solid #000;
+    }
+}
 .image-dialog {
     width: 250px;
     height: 250px;
@@ -176,8 +181,8 @@ watchEffect(() => {
     .product-image img {
         object-fit: contain !important;
         margin: 0 auto;
-        width: 60px;
-        height: 60px;
+        width: 100%;
+        height: 100%;
     }
 
     ::-webkit-scrollbar {
